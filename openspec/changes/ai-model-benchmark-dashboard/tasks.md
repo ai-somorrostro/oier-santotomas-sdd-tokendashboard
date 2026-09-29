@@ -18,13 +18,13 @@
 - [x] 3.1 Crear la rama `feature2` a partir de `develop` actualizado y verificar con `git branch`
 - [x] 3.2 Desarrollar el gráfico de barras nativo en SVG para comparar precios de token de entrada y salida de los 10 modelos, verificando los cálculos matemáticos de escala y dimensiones en el código
 - [x] 3.3 Desarrollar las visualizaciones nativas de consumo de tokens (diario y semanal) con barras y sparklines en SVG, verificando los elementos y datos generados
-- [ ] 3.4 Realizar commit en `feature2`, hacer merge a la rama `develop` y verificar la integración en `develop` con `git log`
+- [x] 3.4 Realizar commit en `feature2`, hacer merge a la rama `develop` y verificar la integración en `develop` con `git log`
 
 ## 4. Feature 3 – Vista de Detalle (Rama `feature3`)
 
-- [ ] 4.1 Crear la rama `feature3` a partir de `develop` actualizado y verificar con `git branch`
-- [ ] 4.2 Desarrollar el modal de detalle accesible activado al pulsar cualquier fila de la tabla (con soporte para tecla Escape, botón de cierre y clic fuera), verificando los listeners de eventos en el código
-- [ ] 4.3 Implementar el panel de métricas extendidas y la gráfica individual SVG de consumo para el modelo seleccionado, verificando la reactividad en el código
+- [x] 4.1 Crear la rama `feature3` a partir de `develop` actualizado y verificar con `git branch`
+- [x] 4.2 Desarrollar el modal de detalle accesible activado al pulsar cualquier fila de la tabla (con soporte para tecla Escape, botón de cierre y clic fuera), verificando los listeners de eventos en el código
+- [x] 4.3 Implementar el panel de métricas extendidas y la gráfica individual SVG de consumo para el modelo seleccionado, verificando la reactividad en el código
 - [ ] 4.4 Realizar commit en `feature3`, hacer merge a la rama `develop` y verificar la integración en `develop` con `git log`
 
 ## 5. Validación de Código, Integración en Main y Subida a GitHub
