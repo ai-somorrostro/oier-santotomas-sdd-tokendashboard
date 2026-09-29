@@ -2,15 +2,15 @@
 
 ## 1. Preparación de la Rama Base en Develop
 
-- [ ] 1.1 Configurar la rama `develop` asegurando `README.md` y `mock-data.json`, y verificar el estado limpio del repositorio con `git status`
-- [ ] 1.2 Inicializar la estructura base de archivos (`index.html`, `styles.css`, `app.js`) y verificar que no se añadan dependencias externas
+- [x] 1.1 Configurar la rama `develop` asegurando `README.md` y `mock-data.json`, y verificar el estado limpio del repositorio con `git status`
+- [x] 1.2 Inicializar la estructura base de archivos (`index.html`, `styles.css`, `app.js`) y verificar que no se añadan dependencias externas
 
 ## 2. Feature 1 – Ordenación y Filtros (Rama `feature1`)
 
-- [ ] 2.1 Crear la rama `feature1` a partir de `develop` y verificar con `git branch`
-- [ ] 2.2 Implementar la carga asíncrona de `mock-data.json` y el renderizado inicial de la tabla con los 10 modelos y formato de métricas, verificando la estructura de datos en el código
-- [ ] 2.3 Implementar la ordenación interactiva bidireccional por columnas (ascendente / descendente al hacer clic en cabeceras), verificando la lógica de ordenación numérica y alfabética en `app.js`
-- [ ] 2.4 Implementar los filtros dinámicos (búsqueda en tiempo real por nombre de modelo y selectores de modalidad de entrada y salida), verificando la función de filtrado combinado en el código
+- [x] 2.1 Crear la rama `feature1` a partir de `develop` y verificar con `git branch`
+- [x] 2.2 Implementar la carga asíncrona de `mock-data.json` y el renderizado inicial de la tabla con los 10 modelos y formato de métricas, verificando la estructura de datos en el código
+- [x] 2.3 Implementar la ordenación interactiva bidireccional por columnas (ascendente / descendente al hacer clic en cabeceras), verificando la lógica de ordenación numérica y alfabética en `app.js`
+- [x] 2.4 Implementar los filtros dinámicos (búsqueda en tiempo real por nombre de modelo y selectores de modalidad de entrada y salida), verificando la función de filtrado combinado en el código
 - [ ] 2.5 Realizar commit en `feature1`, hacer merge a la rama `develop` y verificar el historial limpio con `git log`
 
 ## 3. Feature 2 – Gráficas y Visualizaciones (Rama `feature2`)
