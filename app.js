@@ -2,10 +2,14 @@
  * AI Model Benchmark Dashboard
  * Vanilla JavaScript (Zero external dependencies)
  * Feature 1: Carga, Tabla, Ordenación y Filtros
+ * Feature 2: Visualizaciones y Gráficas Nativas SVG
  */
 
 (function () {
   'use strict';
+
+  // Espacio de nombres SVG
+  const SVG_NS = 'http://www.w3.org/2000/svg';
 
   // Estado de la aplicación
   const state = {
@@ -27,6 +31,9 @@
     outputModalitySelect: document.getElementById('filter-output-modality'),
     resetBtn: document.getElementById('btn-reset-filters'),
     noResultsMsg: document.getElementById('no-results-message'),
+    // Gráficas SVG
+    priceChartSvg: document.getElementById('price-bar-chart'),
+    usageChartSvg: document.getElementById('usage-bar-chart'),
     // KPIs
     kpiTotalModels: document.getElementById('kpi-total-models'),
     kpiAvgTtft: document.getElementById('kpi-avg-ttft'),
@@ -63,7 +70,7 @@
       // Configurar listeners de interacción
       setupEventListeners();
 
-      // Aplicar filtros iniciales y renderizar tabla
+      // Aplicar filtros iniciales, renderizar tabla y gráficas
       applyFiltersAndSort();
 
       console.log('Datos cargados exitosamente:', state.allModels.length, 'modelos.');
@@ -230,6 +237,7 @@
 
     state.filteredModels = result;
     renderTable(state.filteredModels);
+    renderCharts(state.filteredModels.length > 0 ? state.filteredModels : state.allModels);
   }
 
   // Renderizar filas de la tabla
@@ -250,8 +258,8 @@
       tr.setAttribute('data-model-name', model.name);
 
       // Formateo de precios por 1M
-      const inputPrice1M = `$${(model.inputPricePerToken * 1000000).toFixed(2)}`;
-      const outputPrice1M = `$${(model.outputPricePerToken * 1000000).toFixed(2)}`;
+      const inputPrice1M = `$${model.inputPricePer1M.toFixed(2)}`;
+      const outputPrice1M = `$${model.outputPricePer1M.toFixed(2)}`;
 
       // TTFT color badge
       let ttftClass = 'ttft-medium';
@@ -301,6 +309,246 @@
     });
   }
 
+  // ============================================================
+  // Feature 2: Renderizado de Gráficas Nativas en SVG
+  // ============================================================
+
+  function renderCharts(models) {
+    if (!models || models.length === 0) return;
+    renderPriceChart(models);
+    renderUsageChart(models);
+  }
+
+  // Gráfica 1: Precios de Entrada y Salida (Bar Chart agrupado SVG)
+  function renderPriceChart(models) {
+    const svg = elements.priceChartSvg;
+    if (!svg) return;
+    svg.innerHTML = '';
+
+    const width = 720;
+    const height = 280;
+    const padding = { top: 25, right: 20, bottom: 65, left: 55 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+
+    // Calcular valor máximo de precio
+    const maxValRaw = Math.max(...models.map(m => Math.max(m.inputPricePer1M, m.outputPricePer1M)));
+    const maxVal = Math.max(0.5, Math.ceil(maxValRaw * 1.15 * 10) / 10);
+
+    // Eje Y y líneas de cuadrícula (4 intervalos)
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i++) {
+      const val = (maxVal / ticks) * i;
+      const y = padding.top + chartH - (val / maxVal) * chartH;
+
+      // Línea horizontal de cuadrícula
+      const line = createSvgElement('line', {
+        x1: padding.left,
+        y1: y,
+        x2: padding.left + chartW,
+        y2: y,
+        stroke: 'var(--border-subtle)',
+        'stroke-width': '1',
+        'stroke-dasharray': i === 0 ? 'none' : '3 3'
+      });
+      svg.appendChild(line);
+
+      // Etiqueta del valor en Y
+      const text = createSvgElement('text', {
+        x: padding.left - 8,
+        y: y + 4,
+        fill: 'var(--text-dim)',
+        'font-size': '11',
+        'text-anchor': 'end',
+        'font-family': 'monospace'
+      });
+      text.textContent = `$${val.toFixed(2)}`;
+      svg.appendChild(text);
+    }
+
+    // Dibujar barras agrupadas por cada modelo
+    const count = models.length;
+    const bandW = chartW / count;
+    const barW = Math.max(6, Math.min(18, (bandW - 12) / 2));
+    const barGap = 3;
+
+    models.forEach((model, idx) => {
+      const groupCenterX = padding.left + (idx * bandW) + (bandW / 2);
+      const inputBarX = groupCenterX - barW - (barGap / 2);
+      const outputBarX = groupCenterX + (barGap / 2);
+
+      const inputH = Math.max(2, (model.inputPricePer1M / maxVal) * chartH);
+      const outputH = Math.max(2, (model.outputPricePer1M / maxVal) * chartH);
+
+      const inputY = padding.top + chartH - inputH;
+      const outputY = padding.top + chartH - outputH;
+
+      // Barra Input
+      const rectIn = createSvgElement('rect', {
+        x: inputBarX,
+        y: inputY,
+        width: barW,
+        height: inputH,
+        rx: 3,
+        fill: 'var(--color-input-chart)',
+        class: 'chart-bar-hover'
+      });
+      const titleIn = createSvgElement('title');
+      titleIn.textContent = `${model.name} (Entrada): $${model.inputPricePer1M.toFixed(2)} / 1M tokens`;
+      rectIn.appendChild(titleIn);
+      svg.appendChild(rectIn);
+
+      // Barra Output
+      const rectOut = createSvgElement('rect', {
+        x: outputBarX,
+        y: outputY,
+        width: barW,
+        height: outputH,
+        rx: 3,
+        fill: 'var(--color-output-chart)',
+        class: 'chart-bar-hover'
+      });
+      const titleOut = createSvgElement('title');
+      titleOut.textContent = `${model.name} (Salida): $${model.outputPricePer1M.toFixed(2)} / 1M tokens`;
+      rectOut.appendChild(titleOut);
+      svg.appendChild(rectOut);
+
+      // Etiqueta del modelo en el eje X
+      const labelText = createSvgElement('text', {
+        x: groupCenterX,
+        y: padding.top + chartH + 18,
+        fill: 'var(--text-muted)',
+        'font-size': count > 8 ? '9.5' : '11',
+        'text-anchor': 'end',
+        transform: `rotate(-35, ${groupCenterX}, ${padding.top + chartH + 18})`
+      });
+      labelText.textContent = shortenModelName(model.name);
+      svg.appendChild(labelText);
+    });
+  }
+
+  // Gráfica 2: Consumo de Tokens Diario vs Semanal (Bar Chart SVG)
+  function renderUsageChart(models) {
+    const svg = elements.usageChartSvg;
+    if (!svg) return;
+    svg.innerHTML = '';
+
+    const width = 720;
+    const height = 280;
+    const padding = { top: 25, right: 20, bottom: 65, left: 60 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+
+    // Calcular valor máximo en tokens semanales
+    const maxValRaw = Math.max(...models.map(m => m.totalTokensWeek));
+    const maxVal = Math.ceil(maxValRaw * 1.15 / 5000000) * 5000000;
+
+    // Eje Y y líneas de cuadrícula (4 intervalos)
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i++) {
+      const val = (maxVal / ticks) * i;
+      const y = padding.top + chartH - (val / maxVal) * chartH;
+
+      const line = createSvgElement('line', {
+        x1: padding.left,
+        y1: y,
+        x2: padding.left + chartW,
+        y2: y,
+        stroke: 'var(--border-subtle)',
+        'stroke-width': '1',
+        'stroke-dasharray': i === 0 ? 'none' : '3 3'
+      });
+      svg.appendChild(line);
+
+      const text = createSvgElement('text', {
+        x: padding.left - 8,
+        y: y + 4,
+        fill: 'var(--text-dim)',
+        'font-size': '11',
+        'text-anchor': 'end',
+        'font-family': 'monospace'
+      });
+      text.textContent = formatCompactNumber(val);
+      svg.appendChild(text);
+    }
+
+    const count = models.length;
+    const bandW = chartW / count;
+    const barW = Math.max(6, Math.min(18, (bandW - 12) / 2));
+    const barGap = 3;
+
+    models.forEach((model, idx) => {
+      const groupCenterX = padding.left + (idx * bandW) + (bandW / 2);
+      const dailyBarX = groupCenterX - barW - (barGap / 2);
+      const weeklyBarX = groupCenterX + (barGap / 2);
+
+      const dailyH = Math.max(2, (model.totalTokensDay / maxVal) * chartH);
+      const weeklyH = Math.max(2, (model.totalTokensWeek / maxVal) * chartH);
+
+      const dailyY = padding.top + chartH - dailyH;
+      const weeklyY = padding.top + chartH - weeklyH;
+
+      // Barra Diario
+      const rectDaily = createSvgElement('rect', {
+        x: dailyBarX,
+        y: dailyY,
+        width: barW,
+        height: dailyH,
+        rx: 3,
+        fill: 'var(--color-daily-chart)',
+        class: 'chart-bar-hover'
+      });
+      const titleDaily = createSvgElement('title');
+      titleDaily.textContent = `${model.name}\nConsumo Diario: ${formatCompactNumber(model.totalTokensDay)} tokens (${model.totalTokensDay.toLocaleString()} tokens)`;
+      rectDaily.appendChild(titleDaily);
+      svg.appendChild(rectDaily);
+
+      // Barra Semanal
+      const rectWeekly = createSvgElement('rect', {
+        x: weeklyBarX,
+        y: weeklyY,
+        width: barW,
+        height: weeklyH,
+        rx: 3,
+        fill: 'var(--color-weekly-chart)',
+        class: 'chart-bar-hover'
+      });
+      const titleWeekly = createSvgElement('title');
+      titleWeekly.textContent = `${model.name}\nConsumo Semanal: ${formatCompactNumber(model.totalTokensWeek)} tokens (${model.totalTokensWeek.toLocaleString()} tokens)`;
+      rectWeekly.appendChild(titleWeekly);
+      svg.appendChild(rectWeekly);
+
+      // Etiqueta del modelo en el eje X
+      const labelText = createSvgElement('text', {
+        x: groupCenterX,
+        y: padding.top + chartH + 18,
+        fill: 'var(--text-muted)',
+        'font-size': count > 8 ? '9.5' : '11',
+        'text-anchor': 'end',
+        transform: `rotate(-35, ${groupCenterX}, ${padding.top + chartH + 18})`
+      });
+      labelText.textContent = shortenModelName(model.name);
+      svg.appendChild(labelText);
+    });
+  }
+
+  // Ayudante para crear elementos SVG
+  function createSvgElement(tag, attrs = {}) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [key, value] of Object.entries(attrs)) {
+      el.setAttribute(key, value);
+    }
+    return el;
+  }
+
+  function shortenModelName(name) {
+    if (!name) return '';
+    return name
+      .replace('DeepSeek', 'DS')
+      .replace('Mistral', 'Mistral')
+      .replace('Small', 'Sm');
+  }
+
   // Utilidades auxiliares
   function formatCompactNumber(num) {
     if (num >= 1000000) {
@@ -325,6 +573,7 @@
   window._benchmarkApp = {
     state,
     applyFiltersAndSort,
-    renderTable
+    renderTable,
+    renderCharts
   };
 })();
