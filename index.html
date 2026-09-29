@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Comparativo de Modelos de IA</title>
+  <meta name="description" content="Dashboard interno interactivo para comparar modelos de lenguaje de código abierto: costes, latencia TTFT, consumo y modalidades.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <!-- Header principal -->
+    <header class="dashboard-header">
+      <div class="header-content">
+        <div class="header-titles">
+          <div class="badge-tag">Métricas de Rendimiento & Costes</div>
+          <h1>Dashboard de Modelos de IA</h1>
+          <p class="subtitle">Evaluación comparativa de modelos de lenguaje open-source para optimización técnica del equipo.</p>
+        </div>
+      </div>
+
+      <!-- Tarjetas de métricas KPI rápidas -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Modelos Evaluados</div>
+          <div class="kpi-value" id="kpi-total-models">--</div>
+          <div class="kpi-subtext">100% de datos cargados</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">TTFT Promedio</div>
+          <div class="kpi-value" id="kpi-avg-ttft">--</div>
+          <div class="kpi-subtext">Tiempo al primer token</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Modelo Más Rápido</div>
+          <div class="kpi-value accent-green" id="kpi-fastest-model">--</div>
+          <div class="kpi-subtext" id="kpi-fastest-ttft">-- ms</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Consumo Total Semanal</div>
+          <div class="kpi-value accent-cyan" id="kpi-total-tokens-week">--</div>
+          <div class="kpi-subtext">Tokens procesados (In + Out)</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sección de Visualizaciones y Gráficas (Feature 2) -->
+    <section class="visualizations-section" id="visualizations-section">
+      <div class="section-header">
+        <div>
+          <h2>Comparativa Visual & Gráficas de Consumo</h2>
+          <p class="section-desc">Análisis visual de costes por token y volumen de consumo semanal y diario sin librerías externas (SVG nativo).</p>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <!-- Gráfica 1: Precios de Entrada y Salida -->
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <h3>Coste por 1M de Tokens (Input vs Output)</h3>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-dot color-input"></span> Entrada ($/1M)</span>
+              <span class="legend-item"><span class="legend-dot color-output"></span> Salida ($/1M)</span>
+            </div>
+          </div>
+          <div class="chart-canvas-container" id="price-chart-container">
+            <svg id="price-bar-chart" class="native-svg-chart" viewBox="0 0 700 280" preserveAspectRatio="xMidYMid meet" aria-label="Gráfica de precios"></svg>
+          </div>
+        </div>
+
+        <!-- Gráfica 2: Consumo de Tokens Diario vs Semanal -->
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <h3>Consumo de Tokens por Modelo</h3>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-dot color-daily"></span> Diario</span>
+              <span class="legend-item"><span class="legend-dot color-weekly"></span> Semanal</span>
+            </div>
+          </div>
+          <div class="chart-canvas-container" id="usage-chart-container">
+            <svg id="usage-bar-chart" class="native-svg-chart" viewBox="0 0 700 280" preserveAspectRatio="xMidYMid meet" aria-label="Gráfica de consumo de tokens"></svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección de Filtros y Tabla (Feature 1) -->
+    <section class="table-section">
+      <div class="section-header">
+        <div>
+          <h2>Listado Comparativo de Modelos</h2>
+          <p class="section-desc">Haz clic en cualquier cabecera para ordenar o en una fila para abrir la vista extendida.</p>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros -->
+      <div class="filters-bar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="filter-search-name" placeholder="Buscar por nombre de modelo (ej. Llama, DeepSeek...)" autocomplete="off">
+        </div>
+        <div class="select-group">
+          <label for="filter-input-modality">Modalidad Entrada:</label>
+          <select id="filter-input-modality">
+            <option value="all">Todas</option>
+            <option value="Text">Text</option>
+            <option value="Text+Image">Text+Image</option>
+          </select>
+        </div>
+        <div class="select-group">
+          <label for="filter-output-modality">Modalidad Salida:</label>
+          <select id="filter-output-modality">
+            <option value="all">Todas</option>
+            <option value="Text">Text</option>
+          </select>
+        </div>
+        <button id="btn-reset-filters" class="btn-secondary" title="Restablecer filtros">Restablecer</button>
+      </div>
+
+      <!-- Tabla de Modelos -->
+      <div class="table-container">
+        <table class="benchmark-table" id="benchmark-table">
+          <thead>
+            <tr>
+              <th data-column="name" class="sortable">Modelo <span class="sort-indicator">↕</span></th>
+              <th data-column="inputPricePerToken" class="sortable text-right">Precio Entrada ($/1M) <span class="sort-indicator">↕</span></th>
+              <th data-column="outputPricePerToken" class="sortable text-right">Precio Salida ($/1M) <span class="sort-indicator">↕</span></th>
+              <th data-column="ttft_ms" class="sortable text-right">TTFT <span class="sort-indicator">↕</span></th>
+              <th data-column="inputModality" class="sortable">Mod. Entrada <span class="sort-indicator">↕</span></th>
+              <th data-column="outputModality" class="sortable">Mod. Salida <span class="sort-indicator">↕</span></th>
+              <th data-column="inputTokensDay" class="sortable text-right">Tokens Día (In) <span class="sort-indicator">↕</span></th>
+              <th data-column="outputTokensDay" class="sortable text-right">Tokens Día (Out) <span class="sort-indicator">↕</span></th>
+              <th data-column="totalTokensWeek" class="sortable text-right">Tokens Semana Total <span class="sort-indicator">↕</span></th>
+            </tr>
+          </thead>
+          <tbody id="models-table-body">
+            <!-- Las filas se renderizan dinámicamente con JavaScript -->
+          </tbody>
+        </table>
+        <div id="no-results-message" class="empty-state hidden">
+          <p>No se encontraron modelos con los filtros seleccionados.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal de Detalle Extendido (Feature 3) -->
+    <div id="detail-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-model-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <div class="modal-badge">Vista Extendida de Modelo</div>
+            <h3 id="modal-model-title">Nombre del Modelo</h3>
+          </div>
+          <button id="modal-close-btn" class="modal-close-btn" aria-label="Cerrar modal">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-model-body">
+          <!-- Contenido renderizado dinámicamente -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
