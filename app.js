@@ -3,6 +3,7 @@
  * Vanilla JavaScript (Zero external dependencies)
  * Feature 1: Carga, Tabla, Ordenación y Filtros
  * Feature 2: Visualizaciones y Gráficas Nativas SVG
+ * Feature 3: Vista de Detalle Extendido con Modal y Gráficas Individuales
  */
 
 (function () {
@@ -19,7 +20,8 @@
     selectedInputModality: 'all',
     selectedOutputModality: 'all',
     sortColumn: null,
-    sortDirection: 'asc' // 'asc' | 'desc'
+    sortDirection: 'asc', // 'asc' | 'desc'
+    selectedModel: null
   };
 
   // Referencias a elementos del DOM
@@ -39,7 +41,12 @@
     kpiAvgTtft: document.getElementById('kpi-avg-ttft'),
     kpiFastestModel: document.getElementById('kpi-fastest-model'),
     kpiFastestTtft: document.getElementById('kpi-fastest-ttft'),
-    kpiTotalTokensWeek: document.getElementById('kpi-total-tokens-week')
+    kpiTotalTokensWeek: document.getElementById('kpi-total-tokens-week'),
+    // Feature 3: Modal de detalle
+    detailModal: document.getElementById('detail-modal'),
+    modalTitle: document.getElementById('modal-model-title'),
+    modalBody: document.getElementById('modal-model-body'),
+    modalCloseBtn: document.getElementById('modal-close-btn')
   };
 
   // Inicialización
@@ -56,13 +63,22 @@
       const data = await response.json();
       
       // Enriquecer datos con cálculos derivados
-      state.allModels = data.map(model => ({
-        ...model,
-        totalTokensDay: model.inputTokensDay + model.outputTokensDay,
-        totalTokensWeek: model.inputTokensWeek + model.outputTokensWeek,
-        inputPricePer1M: model.inputPricePerToken * 1000000,
-        outputPricePer1M: model.outputPricePerToken * 1000000
-      }));
+      state.allModels = data.map(model => {
+        const totalTokensDay = model.inputTokensDay + model.outputTokensDay;
+        const totalTokensWeek = model.inputTokensWeek + model.outputTokensWeek;
+        const dailyCost = (model.inputTokensDay * model.inputPricePerToken) + (model.outputTokensDay * model.outputPricePerToken);
+        const weeklyCost = (model.inputTokensWeek * model.inputPricePerToken) + (model.outputTokensWeek * model.outputPricePerToken);
+        
+        return {
+          ...model,
+          totalTokensDay,
+          totalTokensWeek,
+          dailyCost,
+          weeklyCost,
+          inputPricePer1M: model.inputPricePerToken * 1000000,
+          outputPricePer1M: model.outputPricePerToken * 1000000
+        };
+      });
 
       // Renderizar KPIs globales
       renderKpis(state.allModels);
@@ -73,7 +89,7 @@
       // Aplicar filtros iniciales, renderizar tabla y gráficas
       applyFiltersAndSort();
 
-      console.log('Datos cargados exitosamente:', state.allModels.length, 'modelos.');
+      console.log('Dashboard cargado exitosamente:', state.allModels.length, 'modelos.');
     } catch (error) {
       console.error('Error cargando mock-data.json:', error);
       if (elements.tableBody) {
@@ -160,10 +176,8 @@
         if (!column) return;
 
         if (state.sortColumn === column) {
-          // Si ya está ordenando por esta columna, alterna dirección
           state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
         } else {
-          // Nueva columna, ordenar ascendente por defecto
           state.sortColumn = column;
           state.sortDirection = 'asc';
         }
@@ -171,6 +185,42 @@
         updateSortHeadersVisual();
         applyFiltersAndSort();
       });
+    });
+
+    // Feature 3: Apertura de modal al hacer clic en fila de la tabla
+    if (elements.tableBody) {
+      elements.tableBody.addEventListener('click', (e) => {
+        const tr = e.target.closest('tr');
+        if (!tr) return;
+        const modelName = tr.getAttribute('data-model-name');
+        const model = state.allModels.find(m => m.name === modelName);
+        if (model) {
+          openDetailModal(model);
+        }
+      });
+    }
+
+    // Feature 3: Cierre de modal por botón
+    if (elements.modalCloseBtn) {
+      elements.modalCloseBtn.addEventListener('click', () => {
+        closeDetailModal();
+      });
+    }
+
+    // Feature 3: Cierre de modal al hacer clic fuera (en el backdrop)
+    if (elements.detailModal) {
+      elements.detailModal.addEventListener('click', (e) => {
+        if (e.target === elements.detailModal) {
+          closeDetailModal();
+        }
+      });
+    }
+
+    // Feature 3: Cierre de modal con tecla Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && elements.detailModal && !elements.detailModal.classList.contains('hidden')) {
+        closeDetailModal();
+      }
     });
   }
 
@@ -222,12 +272,10 @@
         let valA = a[state.sortColumn];
         let valB = b[state.sortColumn];
 
-        // Manejo especial de columnas calculadas o numéricas
         if (typeof valA === 'string') {
           const comp = valA.localeCompare(valB, 'es', { sensitivity: 'base' });
           return state.sortDirection === 'asc' ? comp : -comp;
         } else {
-          // Numérico
           if (valA < valB) return state.sortDirection === 'asc' ? -1 : 1;
           if (valA > valB) return state.sortDirection === 'asc' ? 1 : -1;
           return 0;
@@ -256,6 +304,7 @@
     models.forEach(model => {
       const tr = document.createElement('tr');
       tr.setAttribute('data-model-name', model.name);
+      tr.setAttribute('title', 'Haz clic para ver métricas y gráficas extendidas');
 
       // Formateo de precios por 1M
       const inputPrice1M = `$${model.inputPricePer1M.toFixed(2)}`;
@@ -331,17 +380,14 @@
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
-    // Calcular valor máximo de precio
     const maxValRaw = Math.max(...models.map(m => Math.max(m.inputPricePer1M, m.outputPricePer1M)));
     const maxVal = Math.max(0.5, Math.ceil(maxValRaw * 1.15 * 10) / 10);
 
-    // Eje Y y líneas de cuadrícula (4 intervalos)
     const ticks = 4;
     for (let i = 0; i <= ticks; i++) {
       const val = (maxVal / ticks) * i;
       const y = padding.top + chartH - (val / maxVal) * chartH;
 
-      // Línea horizontal de cuadrícula
       const line = createSvgElement('line', {
         x1: padding.left,
         y1: y,
@@ -353,7 +399,6 @@
       });
       svg.appendChild(line);
 
-      // Etiqueta del valor en Y
       const text = createSvgElement('text', {
         x: padding.left - 8,
         y: y + 4,
@@ -366,7 +411,6 @@
       svg.appendChild(text);
     }
 
-    // Dibujar barras agrupadas por cada modelo
     const count = models.length;
     const bandW = chartW / count;
     const barW = Math.max(6, Math.min(18, (bandW - 12) / 2));
@@ -439,11 +483,9 @@
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
-    // Calcular valor máximo en tokens semanales
     const maxValRaw = Math.max(...models.map(m => m.totalTokensWeek));
     const maxVal = Math.ceil(maxValRaw * 1.15 / 5000000) * 5000000;
 
-    // Eje Y y líneas de cuadrícula (4 intervalos)
     const ticks = 4;
     for (let i = 0; i <= ticks; i++) {
       const val = (maxVal / ticks) * i;
@@ -532,6 +574,198 @@
     });
   }
 
+  // ============================================================
+  // Feature 3: Vista de Detalle Extendido (Modal y Gráficas Nativas)
+  // ============================================================
+
+  function openDetailModal(model) {
+    if (!elements.detailModal || !elements.modalTitle || !elements.modalBody) return;
+
+    state.selectedModel = model;
+    elements.modalTitle.textContent = model.name;
+
+    const priceRatio = (model.outputPricePerToken / model.inputPricePerToken).toFixed(1);
+    const speedRating = model.ttft_ms < 250 ? 'Excelente (Ultra Rápido)' : (model.ttft_ms <= 400 ? 'Bueno (Estándar)' : 'Alto (Razonamiento / Complejo)');
+
+    elements.modalBody.innerHTML = `
+      <div class="detail-metrics-grid">
+        <div class="detail-metric-card">
+          <div class="label">Precio Entrada (Input)</div>
+          <div class="val" style="color: var(--color-primary);">$${model.inputPricePer1M.toFixed(2)} <span style="font-size:0.8rem; font-weight:normal;">/ 1M</span></div>
+          <div class="raw-val">$${model.inputPricePerToken.toFixed(8)} por token</div>
+        </div>
+
+        <div class="detail-metric-card">
+          <div class="label">Precio Salida (Output)</div>
+          <div class="val" style="color: var(--color-output-chart);">$${model.outputPricePer1M.toFixed(2)} <span style="font-size:0.8rem; font-weight:normal;">/ 1M</span></div>
+          <div class="raw-val">$${model.outputPricePerToken.toFixed(8)} por token (${priceRatio}x ratio)</div>
+        </div>
+
+        <div class="detail-metric-card">
+          <div class="label">Latencia (TTFT)</div>
+          <div class="val">${model.ttft_ms} ms</div>
+          <div class="raw-val" style="color: ${model.ttft_ms < 250 ? 'var(--color-success)' : (model.ttft_ms > 400 ? 'var(--color-danger)' : 'var(--color-warning)')}; font-weight: 600;">${speedRating}</div>
+        </div>
+
+        <div class="detail-metric-card">
+          <div class="label">Modalidades de Soporte</div>
+          <div class="val" style="font-size: 1.05rem;">In: ${escapeHtml(model.inputModality)}</div>
+          <div class="raw-val">Out: ${escapeHtml(model.outputModality)}</div>
+        </div>
+
+        <div class="detail-metric-card">
+          <div class="label">Consumo Diario del Equipo</div>
+          <div class="val" style="color: var(--color-daily-chart);">${formatCompactNumber(model.totalTokensDay)} tokens</div>
+          <div class="raw-val">In: ${model.inputTokensDay.toLocaleString()} | Out: ${model.outputTokensDay.toLocaleString()}</div>
+        </div>
+
+        <div class="detail-metric-card">
+          <div class="label">Consumo Semanal del Equipo</div>
+          <div class="val" style="color: var(--color-weekly-chart);">${formatCompactNumber(model.totalTokensWeek)} tokens</div>
+          <div class="raw-val">In: ${model.inputTokensWeek.toLocaleString()} | Out: ${model.outputTokensWeek.toLocaleString()}</div>
+        </div>
+
+        <div class="detail-metric-card">
+          <div class="label">Coste Estimado Diario</div>
+          <div class="val">$${model.dailyCost.toFixed(2)}</div>
+          <div class="raw-val">Basado en consumo real del día</div>
+        </div>
+
+        <div class="detail-metric-card">
+          <div class="label">Coste Estimado Semanal</div>
+          <div class="val" style="color: var(--color-warning);">$${model.weeklyCost.toFixed(2)}</div>
+          <div class="raw-val">Basado en consumo real semanal</div>
+        </div>
+      </div>
+
+      <div class="modal-chart-box">
+        <h4>Desglose de Consumo Individual: Entrada vs Salida (Diario y Semanal)</h4>
+        <div class="chart-legend" style="margin-bottom: 0.75rem;">
+          <span class="legend-item"><span class="legend-dot color-input"></span> Entrada</span>
+          <span class="legend-item"><span class="legend-dot color-output"></span> Salida</span>
+        </div>
+        <div class="chart-canvas-container">
+          <svg id="modal-individual-chart" class="native-svg-chart" viewBox="0 0 680 200" preserveAspectRatio="xMidYMid meet" aria-label="Gráfica individual de consumo del modelo"></svg>
+        </div>
+      </div>
+    `;
+
+    // Renderizar la gráfica específica del modelo en el modal
+    renderModalModelChart(model);
+
+    // Mostrar modal y bloquear scroll de fondo
+    elements.detailModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeDetailModal() {
+    if (!elements.detailModal) return;
+    elements.detailModal.classList.add('hidden');
+    document.body.style.overflow = '';
+    state.selectedModel = null;
+  }
+
+  // Gráfica nativa individual específica del modelo seleccionado
+  function renderModalModelChart(model) {
+    const svg = document.getElementById('modal-individual-chart');
+    if (!svg) return;
+    svg.innerHTML = '';
+
+    const width = 680;
+    const height = 200;
+    const padding = { top: 20, right: 30, bottom: 40, left: 60 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+
+    // Métricas a comparar para este modelo
+    const items = [
+      { label: 'Diario In', tokens: model.inputTokensDay, color: 'var(--color-input-chart)' },
+      { label: 'Diario Out', tokens: model.outputTokensDay, color: 'var(--color-output-chart)' },
+      { label: 'Semanal In', tokens: model.inputTokensWeek, color: 'var(--color-input-chart)' },
+      { label: 'Semanal Out', tokens: model.outputTokensWeek, color: 'var(--color-output-chart)' }
+    ];
+
+    const maxTokens = Math.max(...items.map(i => i.tokens));
+    const maxVal = Math.ceil(maxTokens * 1.15 / 1000000) * 1000000;
+
+    // Eje Y y líneas de cuadrícula
+    const ticks = 3;
+    for (let i = 0; i <= ticks; i++) {
+      const val = (maxVal / ticks) * i;
+      const y = padding.top + chartH - (val / maxVal) * chartH;
+
+      const line = createSvgElement('line', {
+        x1: padding.left,
+        y1: y,
+        x2: padding.left + chartW,
+        y2: y,
+        stroke: 'var(--border-subtle)',
+        'stroke-width': '1',
+        'stroke-dasharray': i === 0 ? 'none' : '3 3'
+      });
+      svg.appendChild(line);
+
+      const text = createSvgElement('text', {
+        x: padding.left - 8,
+        y: y + 4,
+        fill: 'var(--text-dim)',
+        'font-size': '10.5',
+        'text-anchor': 'end',
+        'font-family': 'monospace'
+      });
+      text.textContent = formatCompactNumber(val);
+      svg.appendChild(text);
+    }
+
+    // Dibujar barras individuales
+    const count = items.length;
+    const bandW = chartW / count;
+    const barW = Math.min(60, bandW - 30);
+
+    items.forEach((item, idx) => {
+      const barX = padding.left + (idx * bandW) + (bandW - barW) / 2;
+      const barH = Math.max(3, (item.tokens / maxVal) * chartH);
+      const barY = padding.top + chartH - barH;
+
+      const rect = createSvgElement('rect', {
+        x: barX,
+        y: barY,
+        width: barW,
+        height: barH,
+        rx: 4,
+        fill: item.color,
+        class: 'chart-bar-hover'
+      });
+      const title = createSvgElement('title');
+      title.textContent = `${item.label}: ${item.tokens.toLocaleString()} tokens (${formatCompactNumber(item.tokens)})`;
+      rect.appendChild(title);
+      svg.appendChild(rect);
+
+      // Texto de valor arriba de la barra
+      const valText = createSvgElement('text', {
+        x: barX + barW / 2,
+        y: barY - 6,
+        fill: 'var(--text-main)',
+        'font-size': '11',
+        'font-weight': '600',
+        'text-anchor': 'middle'
+      });
+      valText.textContent = formatCompactNumber(item.tokens);
+      svg.appendChild(valText);
+
+      // Etiqueta debajo del eje X
+      const labelText = createSvgElement('text', {
+        x: barX + barW / 2,
+        y: padding.top + chartH + 20,
+        fill: 'var(--text-muted)',
+        'font-size': '11',
+        'text-anchor': 'middle'
+      });
+      labelText.textContent = item.label;
+      svg.appendChild(labelText);
+    });
+  }
+
   // Ayudante para crear elementos SVG
   function createSvgElement(tag, attrs = {}) {
     const el = document.createElementNS(SVG_NS, tag);
@@ -574,6 +808,8 @@
     state,
     applyFiltersAndSort,
     renderTable,
-    renderCharts
+    renderCharts,
+    openDetailModal,
+    closeDetailModal
   };
 })();
