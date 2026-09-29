@@ -25,10 +25,10 @@
 - [x] 4.1 Crear la rama `feature3` a partir de `develop` actualizado y verificar con `git branch`
 - [x] 4.2 Desarrollar el modal de detalle accesible activado al pulsar cualquier fila de la tabla (con soporte para tecla Escape, botón de cierre y clic fuera), verificando los listeners de eventos en el código
 - [x] 4.3 Implementar el panel de métricas extendidas y la gráfica individual SVG de consumo para el modelo seleccionado, verificando la reactividad en el código
-- [ ] 4.4 Realizar commit en `feature3`, hacer merge a la rama `develop` y verificar la integración en `develop` con `git log`
+- [x] 4.4 Realizar commit en `feature3`, hacer merge a la rama `develop` y verificar la integración en `develop` con `git log`
 
 ## 5. Validación de Código, Integración en Main y Subida a GitHub
 
-- [ ] 5.1 En la rama `develop`, realizar una auditoría estática exhaustiva de código (`index.html`, `styles.css`, `app.js`) comprobando sintaxis, selectores del DOM y manejo de errores sin ejecutar Chrome
-- [ ] 5.2 Fusionar la rama `develop` en `main` y verificar la integridad de las ramas con `git branch` y `git log`
-- [ ] 5.3 Asegurar que la carpeta `openspec/` y todos los archivos del proyecto estén versionados y realizar push de las ramas al repositorio remoto de GitHub (`origin`)
+- [x] 5.1 En la rama `develop`, realizar una auditoría estática exhaustiva de código (`index.html`, `styles.css`, `app.js`) comprobando sintaxis, selectores del DOM y manejo de errores sin ejecutar Chrome
+- [x] 5.2 Fusionar la rama `develop` en `main` y verificar la integridad de las ramas con `git branch` y `git log`
+- [x] 5.3 Asegurar que la carpeta `openspec/` y todos los archivos del proyecto estén versionados y realizar push de las ramas al repositorio remoto de GitHub (`origin`)
