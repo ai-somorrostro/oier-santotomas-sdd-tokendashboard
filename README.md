@@ -82,3 +82,23 @@ Todo el trabajo debe estructurarse bajo el prefijo `nombre.apellido` de cada des
 > - Gráficas individuales específicas de dicho modelo.
 >
 > *Condición técnica:* Todo nativo, sin dependencias externas y sin tests.
+
+---
+
+## 5. Docker
+
+Dockerizar la app de manera que se pueda ejecutar en cualquier sistema con Docker.
+
+### Crear la imagen
+
+```bash
+docker build -t tokendashboard .
+```
+
+### Crear y arrancar el contenedor
+
+```bash
+docker run -d -p 8000:8000 --name tokendashboard tokendashboard
+```
+
+Abrir `http://localhost:8000` en el navegador.
